@@ -49,7 +49,8 @@ try {
 let pass = 0;
 let fail = 0;
 const check = (ok, label, extra = "") => {
-  ok ? pass++ : fail++;
+  if (ok) pass++;
+  else fail++;
   console.log(`${ok ? "✓" : "✗"} ${label}${extra ? ` — ${extra}` : ""}`);
 };
 const sha = (buf) => createHash("sha256").update(buf).digest("hex");
