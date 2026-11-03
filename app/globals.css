@@ -1,0 +1,81 @@
+@import "tailwindcss";
+
+/*
+ * CINEMORPH AI — tokens de design
+ * Estética de estúdio de pós-produção: fundo quase preto, superfícies grafite,
+ * um único acento âmbar (luz de gravação/tally) e um acento frio para estados.
+ */
+@theme {
+  /* Superfícies */
+  --color-canvas: #0b0c0e;
+  --color-surface: #121418;
+  --color-surface-raised: #181b20;
+  --color-surface-overlay: #1f2329;
+  --color-border: #262a31;
+  --color-border-strong: #343944;
+
+  /* Texto */
+  --color-fg: #eceef1;
+  --color-fg-muted: #a3a9b4;
+  --color-fg-subtle: #8a909b;
+
+  /* Acentos */
+  --color-accent: #f5a524;
+  --color-accent-hover: #ffb84a;
+  --color-accent-fg: #1a1205;
+  --color-info: #5cc8e6;
+  --color-success: #4ade80;
+  --color-warning: #fbbf24;
+  --color-danger: #f87171;
+
+  /* Tipografia */
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, "SFMono-Regular", monospace;
+
+  /* Raios */
+  --radius-panel: 0.625rem;
+
+  /* Animações discretas */
+  --animate-pulse-soft: pulse-soft 2.4s ease-in-out infinite;
+
+  @keyframes pulse-soft {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.45;
+    }
+  }
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    background-color: var(--color-canvas);
+    color: var(--color-fg);
+    font-family: var(--font-sans);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background-color: color-mix(in oklab, var(--color-accent) 35%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
