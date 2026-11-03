@@ -10,7 +10,9 @@
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "check": "npm run lint && npm run typecheck && npm run test && npm run build"
+    "check": "npm run lint && npm run typecheck && npm run test && npm run build",
+    "worker": "tsx --conditions=react-server workers/worker.ts",
+    "dev:all": "node scripts/dev-all.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",
@@ -22,7 +24,8 @@
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "server-only": "^0.0.1",
-    "tailwind-merge": "^3.7.0"
+    "tailwind-merge": "^3.7.0",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@tailwindcss/turbopack": "^4",
@@ -38,10 +41,11 @@
     "eslint-config-next": "16.4.4",
     "jsdom": "^30.1.3",
     "tailwindcss": "^4",
+    "tsx": "^4.23.15",
     "typescript": "^5",
     "vitest": "^5.1.0"
   },
   "engines": {
-    "node": ">=20.9.0"
+    "node": ">=22.13.0"
   }
 }

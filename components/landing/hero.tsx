@@ -16,12 +16,12 @@ export function Hero() {
             Seu estúdio de pós-produção, com IA no centro da timeline.
           </h1>
           <p className="mt-5 max-w-xl text-base leading-relaxed text-fg-muted sm:text-lg">
-            O CINEMORPH AI vai reunir upload, direção de cena, transformação visual, edição e
+            O CINEMORPH AI reúne upload, direção de cena, transformação visual, edição e
             exportação em um só lugar, usando os modelos de vídeo que você conectar.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
-            <ButtonLink href="/editor" size="lg">
-              Conhecer o estúdio
+            <ButtonLink href="/projetos" size="lg">
+              Criar um projeto
               <ArrowRight aria-hidden="true" />
             </ButtonLink>
             <ButtonLink href="#roteiro" variant="secondary" size="lg">
@@ -29,7 +29,7 @@ export function Hero() {
             </ButtonLink>
           </div>
           <p className="mt-4 text-xs text-fg-subtle">
-            Sem cadastro nesta versão. Nenhum vídeo é gerado ainda.
+            Edição, cortes, legendas e exportação já funcionam. Modelos de IA reais ainda não estão conectados.
           </p>
         </div>
         <StudioPreview />

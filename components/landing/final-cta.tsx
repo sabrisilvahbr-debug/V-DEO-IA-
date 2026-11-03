@@ -9,10 +9,10 @@ export function FinalCta() {
             Comece pelo estúdio
           </h2>
           <p className="mt-2 text-fg-muted">
-            Explore a interface agora. Projetos e geração serão liberados nas próximas etapas.
+            Crie um projeto, envie seus vídeos e exporte nos formatos vertical, quadrado ou horizontal.
           </p>
         </div>
-        <ButtonLink href="/dashboard" size="lg">
+        <ButtonLink href="/projetos" size="lg">
           Iniciar um projeto
         </ButtonLink>
       </div>

@@ -2,103 +2,93 @@
 
 Plataforma web de criação, transformação e edição de vídeos com inteligência artificial.
 
-> **Estado atual: etapa 1 de 5 (fundação).** A interface é navegável, mas autenticação,
-> banco de dados, upload e geração de vídeo **ainda não existem**. Telas desses recursos
-> mostram estados vazios identificados com "Em desenvolvimento · Etapa N".
-
-## Stack
-
-| Camada        | Tecnologia                                                     |
-| ------------- | -------------------------------------------------------------- |
-| Framework     | Next.js 16 (App Router, Turbopack, Cache Components)           |
-| UI            | React 19, TypeScript estrito, Tailwind CSS 4                   |
-| Componentes   | Padrão shadcn/ui (cva + tailwind-merge) escrito no repositório |
-| Ícones        | lucide-react                                                   |
-| Dados/Auth    | Supabase (`@supabase/ssr`) — preparado, ativado na etapa 3     |
-| Testes        | Vitest + Testing Library + jsdom                               |
+> **Estado atual: etapas 1, 3, 4 e 5 implementadas.** Você já pode criar projetos, enviar
+> vídeos, editar na timeline (cortes, ordem, cor, volume, trilha, legendas), detectar cenas e
+> exportar MP4 em 16:9, 9:16 ou 1:1. A **geração por IA ainda não está conectada**: o único
+> provedor ativo é o **MOCK**, que produz demonstrações com FFmpeg, claramente marcadas.
+> A etapa 2 (refinamento visual da landing) ficou para depois.
 
 ## Requisitos
 
-- Node.js 20.9 ou superior (testado com Node 22)
-- npm 10 ou superior
+- **Node.js 22.13 ou superior** (o modo local usa o módulo `node:sqlite`)
+- **FFmpeg e FFprobe** no PATH (versão 5 ou superior), com `libx264` e `aac`.
+  Para gravar legendas no vídeo, o FFmpeg precisa do `libass` (as builds comuns já trazem).
+  - Windows: `winget install Gyan.FFmpeg`
+  - macOS: `brew install ffmpeg`
+  - Ubuntu/Debian: `sudo apt install ffmpeg`
 
-## Instalação e execução local
+## Instalação e execução
 
 ```bash
 git clone https://github.com/sabrisilvahbr-debug/V-DEO-IA-.git
 cd V-DEO-IA-
 npm install
-npm run dev
+npm run dev:all        # servidor (http://localhost:3000) + worker da fila
 ```
 
-Abra <http://localhost:3000>.
+Também dá para rodar separado, em dois terminais: `npm run dev` e `npm run worker`.
+**Sem o worker, gerações, detecção de cenas e exportações ficam paradas "Na fila".**
 
-Nenhuma variável de ambiente é obrigatória nesta etapa. Para preparar o Supabase:
+Os dados ficam em `.data/` (banco SQLite, vídeos enviados, exportações). A pasta está no
+`.gitignore`. Para começar do zero, apague-a com o servidor parado.
 
-```bash
-cp .env.example .env.local   # depois preencha os valores públicos do seu projeto
-```
+## Como usar
+
+1. **Projetos → Criar projeto.** O estúdio abre em seguida.
+2. **Mídia:** marque a declaração de direitos/consentimento e envie vídeos, imagens ou áudios.
+   O arquivo é validado pelo conteúdo (não pela extensão) e pelo FFprobe.
+3. **+ Timeline** adiciona o clipe; **+ Trilha** define o áudio de fundo.
+4. **Clipe:** ajuste entrada/saída, volume, brilho, contraste e saturação; use
+   **Detectar mudanças de cena** e depois **Dividir o clipe nesses cortes**.
+5. **Legendas:** adicione no cursor, edite, baixe o `.srt` ou grave no vídeo.
+6. **Gerar:** descreva a cena (o diretor de cena organiza câmera, luz etc.). Hoje só o MOCK
+   responde, e o resultado é marcado como "Demonstração".
+7. **Exportar:** escolha proporção e qualidade. Cada exportação vira uma **versão** para download.
+
+A timeline é salva automaticamente.
 
 ## Comandos
 
-| Comando             | O que faz                                              |
-| ------------------- | ------------------------------------------------------ |
-| `npm run dev`       | Servidor de desenvolvimento                            |
-| `npm run build`     | Build de produção                                      |
-| `npm start`         | Servidor de produção (após o build)                    |
-| `npm run lint`      | ESLint                                                 |
-| `npm run typecheck` | Gera os tipos de rota do Next e roda `tsc --noEmit`    |
-| `npm test`          | Testes unitários e de componentes (Vitest)             |
-| `npm run check`     | Lint + tipos + testes + build, em sequência            |
+| Comando             | O que faz                                                   |
+| ------------------- | ----------------------------------------------------------- |
+| `npm run dev:all`   | Servidor de desenvolvimento + worker                        |
+| `npm run dev`       | Só o servidor                                               |
+| `npm run worker`    | Só o worker da fila (gerações, cenas, exportações)          |
+| `npm run build`     | Build de produção                                           |
+| `npm start`         | Servidor de produção (rode o worker junto)                  |
+| `npm run lint`      | ESLint                                                      |
+| `npm run typecheck` | Tipos de rota do Next + `tsc --noEmit`                      |
+| `npm test`          | Testes (unitários, componentes e integração com FFmpeg)     |
+| `npm run check`     | Lint + tipos + testes + build                               |
 
-## Rotas
-
-| Rota             | Estado                                                    |
-| ---------------- | --------------------------------------------------------- |
-| `/`              | Landing page                                              |
-| `/login`         | Formulário desabilitado, aviso de autenticação inativa   |
-| `/cadastro`      | Formulário desabilitado, aviso de autenticação inativa   |
-| `/dashboard`     | Painéis com estados vazios                                |
-| `/projetos`      | Estado vazio (etapa 3)                                    |
-| `/biblioteca`    | Estado vazio (etapa 3)                                    |
-| `/editor`        | Layout do estúdio: mídia, preview, inspetor e timeline    |
-| `/configuracoes` | Mostra se as variáveis do Supabase estão definidas        |
-
-## Estrutura
+## Arquitetura em uma página
 
 ```
-app/                 rotas (App Router)
-  (app)/             área do estúdio, com barra lateral
-  (auth)/            login e cadastro
-components/
-  ui/                botões, badges, cards, painéis, inputs, estados vazios
-  layout/            logo, cabeçalho, rodapé, navegação, shell do app
-  landing/           seções da landing page
-  studio/            layout do editor
-  auth/              formulário de autenticação
-lib/
-  supabase/          config pública, clientes browser e server
-  modules.ts         roteiro dos 25 módulos e seu estado real
-  navigation.ts      itens da navegação privada
-tests/               testes Vitest
-docs/                arquitetura e decisões
+Navegador ──► Next.js (páginas + /api) ──► Camada de dados ──► SQLite local | Supabase
+                     │                            │
+                     │ cria tarefa                └► Armazenamento ──► pasta .data | Supabase Storage
+                     ▼
+                Fila (tabela jobs) ◄── Worker (npm run worker)
+                                          ├─ geração ──► Roteador ──► Provedores (MOCK hoje)
+                                          ├─ detecção de cenas ──► FFmpeg
+                                          └─ exportação ──► FFmpeg ──► nova versão do projeto
 ```
 
-## Segurança
+Detalhes: [`docs/architecture.md`](docs/architecture.md) · API: [`docs/api.md`](docs/api.md) ·
+Provedores: [`docs/providers.md`](docs/providers.md) · Segurança: [`docs/security.md`](docs/security.md) ·
+Supabase: [`docs/supabase.md`](docs/supabase.md) · Implantação: [`docs/deployment.md`](docs/deployment.md)
 
-- `.env*` está no `.gitignore`; apenas `.env.example` (sem valores) é versionado.
-- O código do navegador lê somente `NEXT_PUBLIC_SUPABASE_URL` e
-  `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, que são públicas por design quando o Row
-  Level Security está ativo. Chaves secretas nunca devem receber o prefixo `NEXT_PUBLIC_`.
-- `lib/supabase/server.ts` importa `server-only` e não pode ser incluído no bundle do cliente.
-- Não há pagamentos, créditos internos nem chamadas a APIs de IA nesta etapa.
+## O que é real e o que é demonstração
 
-## Próximas etapas
+| Recurso                                   | Estado                                                        |
+| ----------------------------------------- | ------------------------------------------------------------- |
+| Projetos, upload, biblioteca, versões     | Funcionando (modo local)                                      |
+| Timeline, cortes, cor, volume, trilha     | Funcionando, renderizado pelo FFmpeg                          |
+| Detecção de cenas                         | Funcionando (FFmpeg `select=scene`)                           |
+| Legendas                                  | Edição manual, SRT e gravação no vídeo; sem transcrição       |
+| Fila, novas tentativas, recuperação       | Funcionando (lease, backoff, idempotência)                    |
+| Geração / transformação por IA            | **Somente MOCK** (sem IA). Integrações reais: etapa 6         |
+| Login e Supabase                          | Implementado, **não verificado** com um projeto Supabase real |
+| Pagamentos                                | Não implementado (sem créditos internos)                      |
 
-1. **Fundação** — concluída nesta entrega.
-2. **Design refinado e conclusão da landing page.**
-3. Autenticação Supabase, migrações com RLS, upload validado, biblioteca de projetos.
-4. Contratos de provedores, adaptador MOCK (identificado como demonstração) e fila de tarefas.
-5. Pipeline FFmpeg, timeline, renderização e exportação.
-
-Detalhes em [`docs/architecture.md`](docs/architecture.md).
+O estado de cada um dos 25 módulos está em `lib/modules.ts` e na landing page.

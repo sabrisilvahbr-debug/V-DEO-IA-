@@ -10,8 +10,13 @@ type AppNavProps = {
   variant: "sidebar" | "bar";
 };
 
+/** Navegação com o item ativo destacado (lê a URL; fica dentro de <Suspense>). */
 export function AppNav({ variant }: AppNavProps) {
-  const pathname = usePathname();
+  return <AppNavLinks variant={variant} pathname={usePathname()} />;
+}
+
+/** Links sem leitura da URL: usado como fallback pré-renderizado. */
+export function AppNavLinks({ variant, pathname }: AppNavProps & { pathname: string | null }) {
   const isBar = variant === "bar";
 
   return (
