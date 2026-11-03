@@ -1,6 +1,5 @@
 import { mkdirSync } from "node:fs";
 import path from "node:path";
-import { DatabaseSync, type SQLInputValue } from "node:sqlite";
 import { parseTimeline, type Timeline } from "@/lib/domain/timeline";
 import type {
   AspectRatio,
@@ -11,10 +10,11 @@ import type {
   ProjectVersion,
   UsageEvent,
 } from "@/lib/domain/types";
+import { openSqlite, type SqliteDatabase, type SqliteDriverName, type SqliteValue } from "./sqlite-driver";
 import { sqliteMigrations } from "./sqlite-schema";
 import type { DataStore, JobPatch, NewAsset, NewJob } from "./types";
 
-type Row = Record<string, SQLInputValue>;
+type Row = Record<string, SqliteValue>;
 
 const now = () => new Date().toISOString();
 
@@ -72,7 +72,7 @@ function toAsset(row: Row): MediaAsset {
 }
 
 function toJob(row: Row): Job {
-  const str = (v: SQLInputValue) => (v === null || v === undefined ? null : String(v));
+  const str = (v: SqliteValue) => (v === null || v === undefined ? null : String(v));
   return {
     id: String(row.id),
     ownerId: String(row.owner_id),
@@ -113,15 +113,16 @@ function toVersion(row: Row): ProjectVersion {
 }
 
 /**
- * Implementação local com SQLite (módulo `node:sqlite`, Node 22.13+).
- * Usa WAL para permitir que o servidor web e o worker acessem o mesmo arquivo.
+ * Implementação local com SQLite: `node:sqlite` (Node 22.13+) ou
+ * `better-sqlite3` (Node 20+), o que estiver disponível. Usa WAL para permitir que o servidor web e o worker acessem o mesmo arquivo.
  */
 export class LocalDataStore implements DataStore {
-  private db: DatabaseSync;
+  private db: SqliteDatabase;
+  readonly driver: SqliteDriverName;
 
   constructor(dbPath: string) {
     if (dbPath !== ":memory:") mkdirSync(path.dirname(dbPath), { recursive: true });
-    this.db = new DatabaseSync(dbPath);
+    ({ db: this.db, driver: this.driver } = openSqlite(dbPath));
     this.db.exec("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;");
     this.migrate();
   }
@@ -171,7 +172,7 @@ export class LocalDataStore implements DataStore {
          ORDER BY p.updated_at DESC
          LIMIT ?`,
       )
-      .all(...([ownerId, ...(search ? [`%${escapeLike(search)}%`] : []), options.limit ?? 200] as SQLInputValue[])) as Row[];
+      .all(...([ownerId, ...(search ? [`%${escapeLike(search)}%`] : []), options.limit ?? 200] as SqliteValue[])) as Row[];
 
     return rows.map(
       (row): ProjectSummary => ({
@@ -211,7 +212,7 @@ export class LocalDataStore implements DataStore {
     patch: { name?: string; aspectRatio?: AspectRatio; timeline?: Timeline },
   ) {
     const sets: string[] = [];
-    const values: SQLInputValue[] = [];
+    const values: SqliteValue[] = [];
     if (patch.name !== undefined) {
       sets.push("name = ?");
       values.push(patch.name);
@@ -244,7 +245,7 @@ export class LocalDataStore implements DataStore {
     filter: { projectId?: string; kind?: MediaAsset["kind"]; role?: MediaAsset["role"]; limit?: number } = {},
   ) {
     const where = ["owner_id = ?"];
-    const values: SQLInputValue[] = [ownerId];
+    const values: SqliteValue[] = [ownerId];
     if (filter.projectId) {
       where.push("project_id = ?");
       values.push(filter.projectId);
@@ -360,7 +361,7 @@ export class LocalDataStore implements DataStore {
     filter: { projectId?: string; statuses?: Job["status"][]; type?: Job["type"]; limit?: number } = {},
   ) {
     const where = ["owner_id = ?"];
-    const values: SQLInputValue[] = [ownerId];
+    const values: SqliteValue[] = [ownerId];
     if (filter.projectId) {
       where.push("project_id = ?");
       values.push(filter.projectId);
@@ -436,7 +437,7 @@ export class LocalDataStore implements DataStore {
         `SELECT * FROM usage_events WHERE owner_id = ? ${options.since ? "AND created_at >= ?" : ""}
          ORDER BY created_at DESC LIMIT ?`,
       )
-      .all(...([ownerId, ...(options.since ? [options.since] : []), options.limit ?? 500] as SQLInputValue[])) as Row[];
+      .all(...([ownerId, ...(options.since ? [options.since] : []), options.limit ?? 500] as SqliteValue[])) as Row[];
     return rows.map(
       (row): UsageEvent => ({
         id: String(row.id),
@@ -491,11 +492,11 @@ export class LocalDataStore implements DataStore {
       finishedAt: "finished_at",
     };
     const sets: string[] = [];
-    const values: SQLInputValue[] = [];
+    const values: SqliteValue[] = [];
     for (const [key, value] of Object.entries(patch) as [keyof JobPatch, unknown][]) {
       if (value === undefined) continue;
       sets.push(`${columns[key]} = ?`);
-      values.push(key === "output" ? json(value) : (value as SQLInputValue));
+      values.push(key === "output" ? json(value) : (value as SqliteValue));
     }
     sets.push("updated_at = ?");
     values.push(now());

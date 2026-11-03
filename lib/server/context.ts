@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import type { CurrentUser } from "@/lib/domain/types";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { configProblems, serverConfig } from "./config";
+import { SetupError } from "./setup-error";
 import { LocalBlobStorage } from "./storage/local";
 import { SupabaseBlobStorage } from "./storage/supabase";
 import type { BlobStorage } from "./storage/types";
@@ -22,10 +23,26 @@ export type RequestContext = {
 type Singletons = { store?: LocalDataStore; storage?: LocalBlobStorage };
 const globalForLocal = globalThis as unknown as { __cinemorphLocal?: Singletons };
 
+function openLocalStore(dbPath: string): LocalDataStore {
+  try {
+    return new LocalDataStore(dbPath);
+  } catch (error) {
+    if (error instanceof SetupError) throw error;
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code === "EACCES" || code === "EPERM" || code === "EROFS") {
+      throw new SetupError(
+        `Sem permissão para gravar os dados locais em ${serverConfig().dataDir}.`,
+        "Defina CINEMORPH_DATA_DIR para uma pasta com permissão de escrita. Em hospedagens sem disco gravável (ex.: Vercel), use o modo Supabase.",
+      );
+    }
+    throw error;
+  }
+}
+
 function localSingletons() {
   const config = serverConfig();
   const cache = (globalForLocal.__cinemorphLocal ??= {});
-  cache.store ??= new LocalDataStore(config.dbPath);
+  cache.store ??= openLocalStore(config.dbPath);
   cache.storage ??= new LocalBlobStorage(config.storageDir);
   return { store: cache.store, storage: cache.storage };
 }
@@ -37,7 +54,7 @@ function localSingletons() {
 export async function getRequestContext(): Promise<RequestContext | null> {
   const config = serverConfig();
   const problems = configProblems(config);
-  if (problems.length) throw new Error(problems.join(" "));
+  if (problems.length) throw new SetupError(problems.join(" "), "Ajuste o arquivo .env.local e reinicie o servidor.");
 
   if (config.backend === "local") {
     const { store, storage } = localSingletons();

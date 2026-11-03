@@ -10,7 +10,8 @@ Plataforma web de criação, transformação e edição de vídeos com inteligê
 
 ## Requisitos
 
-- **Node.js 22.13 ou superior** (o modo local usa o módulo `node:sqlite`)
+- **Node.js 20.9 ou superior** — recomendado **22.13+**. No Node 22.13+ o banco local usa o
+  SQLite nativo; em versões anteriores, usa o `better-sqlite3` (instalado pelo `npm install`).
 - **FFmpeg e FFprobe** no PATH (versão 5 ou superior), com `libx264` e `aac`.
   Para gravar legendas no vídeo, o FFmpeg precisa do `libass` (as builds comuns já trazem).
   - Windows: `winget install Gyan.FFmpeg`
@@ -31,6 +32,15 @@ Também dá para rodar separado, em dois terminais: `npm run dev` e `npm run wor
 
 Os dados ficam em `.data/` (banco SQLite, vídeos enviados, exportações). A pasta está no
 `.gitignore`. Para começar do zero, apague-a com o servidor parado.
+
+## Se uma página não abrir
+
+1. Rode `npm install` de novo (sempre que baixar uma versão nova do projeto).
+2. Rode `npm run doctor`: ele verifica Node.js, dependências, banco local e FFmpeg e diz o que corrigir.
+3. Com o servidor rodando, abra **http://localhost:3000/diagnostico** para ver a mesma verificação no navegador.
+4. Se instalou o FFmpeg agora, feche e abra o terminal antes de iniciar de novo.
+
+O `npm run dev`, o `npm start` e o `npm run worker` já fazem essa verificação antes de iniciar.
 
 ## Como usar
 
@@ -60,6 +70,7 @@ A timeline é salva automaticamente.
 | `npm run typecheck` | Tipos de rota do Next + `tsc --noEmit`                      |
 | `npm test`          | Testes (unitários, componentes e integração com FFmpeg)     |
 | `npm run check`     | Lint + tipos + testes + build                               |
+| `npm run doctor`    | Verifica o ambiente (Node, dependências, banco, FFmpeg)     |
 
 ## Arquitetura em uma página
 
