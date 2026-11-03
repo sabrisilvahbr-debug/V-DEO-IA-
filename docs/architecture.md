@@ -2,67 +2,98 @@
 
 ## Princípios
 
-1. **Nada simulado como real.** Recurso não implementado aparece como estado vazio com
-   o selo "Em desenvolvimento · Etapa N". O estado de cada um dos 25 módulos fica em
-   `lib/modules.ts` e é exibido na landing page.
-2. **Funciona sem credenciais.** Toda integração é opcional e detectada em tempo de
-   execução; sem configuração, a interface mostra "não configurado" em vez de quebrar.
-3. **Segredos só no servidor.** Somente variáveis `NEXT_PUBLIC_` com valores públicos
-   chegam ao navegador.
-4. **Módulos pequenos.** Cada arquivo tem uma responsabilidade; páginas compõem
-   componentes de `components/`.
+1. **Nada simulado como real.** O MOCK é o único provedor ativo e tudo que ele produz leva a
+   marca "Demonstração" (no arquivo, no banco e na interface). Módulos incompletos têm o estado
+   real em `lib/modules.ts`.
+2. **Funciona sem contratar nada.** Modo local com SQLite, pasta de arquivos e FFmpeg.
+3. **Segredos só no servidor.** O navegador recebe apenas a URL e a chave publicável do Supabase.
+4. **Trabalho pesado fora da requisição HTTP.** Gerações, detecção de cenas e exportações são
+   tarefas persistentes processadas por um worker separado.
 
 ## Camadas
 
 ```
-app/            Rotas. Server Components por padrão.
-components/ui   Primitivas visuais sem regra de negócio.
-components/*    Composições por área (layout, landing, studio, auth).
-lib/            Lógica pura e clientes de serviços externos.
+app/                       Rotas (páginas e /api). Páginas leem dados dentro de <Suspense>.
+components/ui              Primitivas visuais.
+components/studio          Estúdio do projeto (cliente): mídia, geração, tarefas, preview,
+                           inspetor, legendas, exportação, timeline.
+lib/domain                 Tipos, esquema da timeline (Zod) e operações puras (reducer).
+lib/media                  Funções puras de mídia: plano de render, SRT, cenas.
+lib/server/config.ts       Variáveis de ambiente validadas.
+lib/server/context.ts      Usuário + dados + armazenamento por requisição; contexto do worker.
+lib/server/store/          Interface DataStore e implementações SQLite e Supabase.
+lib/server/storage/        Armazenamento de arquivos: pasta local e Supabase Storage.
+lib/server/media/          FFmpeg/FFprobe, validação, ingestão de arquivos.
+lib/server/jobs/           Criação de tarefas, executor com retry e handlers.
+providers/                 Contrato VideoProvider, MOCK, registro e roteador.
+workers/worker.ts          Processo da fila.
+supabase/migrations/       Esquema PostgreSQL com RLS (espelha o SQLite).
+proxy.ts                   Sessão Supabase e redirecionamento (inativo no modo local).
 ```
 
-Diretórios previstos para as próximas etapas (ainda não criados para evitar código
-vazio): `providers/` (adaptadores de IA), `workers/` (fila e FFmpeg), `supabase/`
-(migrações).
+## Dados
 
-## Design system
+Tabelas (SQLite e PostgreSQL): `projects` (com a timeline em JSON), `media_assets`, `jobs`,
+`project_versions`, `usage_events` e, no Supabase, `profiles`.
 
-Tokens definidos em `app/globals.css` com `@theme` do Tailwind 4:
+Decisão: **uma tabela `jobs`** com coluna `type` (`generation`, `render`, `scene_detect`) em vez
+de tabelas separadas por tipo. O ciclo de vida (fila, lease, tentativas, cancelamento) é o
+mesmo, e um único worker atende tudo.
 
-| Token                   | Uso                                    |
-| ----------------------- | -------------------------------------- |
-| `canvas`                | fundo da página                        |
-| `surface*`              | painéis em três níveis de elevação     |
-| `border`, `border-strong` | divisórias e contornos               |
-| `fg`, `fg-muted`, `fg-subtle` | hierarquia de texto              |
-| `accent`                | âmbar, cor de ação e de destaque       |
-| `info/success/warning/danger` | estados                          |
+Toda operação recebe o `ownerId` do servidor. O navegador nunca define o dono de um registro.
 
-Fontes Geist (via `next/font`). Foco visível com contorno âmbar. Animações respeitam
-`prefers-reduced-motion`.
+## Fluxo de uma tarefa
 
-Os componentes seguem o padrão do shadcn/ui (variantes com `class-variance-authority`,
-mesclagem com `tailwind-merge`), escritos diretamente no repositório. O CLI do shadcn
-não foi usado porque nenhum componente da biblioteca era necessário além dessas
-primitivas; ele pode ser adicionado depois sem conflito.
+1. A rota valida a entrada (Zod), o projeto e as mídias do usuário.
+2. Para geração: o roteador escolhe o provedor por **capacidade e custo** e a guarda de custos
+   exige confirmação do valor exato (ou aceite explícito se for desconhecido) e respeita o
+   orçamento mensal (`OPERATIONAL_BUDGET_CENTS`).
+3. A tarefa é criada com uma **chave de idempotência** (`clientRequestId`): reenviar a mesma
+   requisição devolve a mesma tarefa.
+4. O worker reserva a tarefa com **lease** (2 min, renovado por heartbeat). Se o worker cair,
+   o lease expira e a tarefa volta à fila (ou falha ao esgotar as tentativas).
+5. Erros temporários são repetidos com atraso exponencial (5 s, 10 s, 20 s… até 5 min).
+   Erros definitivos (`NonRetryableError`) falham na hora.
+6. **Provedores pagos nunca são repetidos automaticamente** (`maxAttempts = 1`). Se a tarefa já
+   tem `providerJobId`, uma nova tentativa só acompanha o job existente — não inicia outro.
+7. Cancelamento: na fila, cancela na hora; em execução, o heartbeat detecta e interrompe o FFmpeg.
 
-## Supabase
+## Renderização
 
-- `lib/supabase/config.ts` lê e valida URL e chave publicável (HTTPS, ou localhost para
-  o Supabase local). Retorna `null` se faltar algo.
-- `lib/supabase/client.ts` cria o cliente do navegador com `createBrowserClient`.
-- `lib/supabase/server.ts` cria o cliente do servidor com `createServerClient` e o
-  adaptador de cookies `getAll`/`setAll` do Next.
+`lib/media/render-plan.ts` monta o comando do FFmpeg como função pura (testada):
 
-Na etapa 3: `proxy.ts` para renovar a sessão por requisição, proteção das rotas de
-`(app)`, migrações com RLS.
+- cada clipe: corte (`-ss`/`-t`), escala com barras pretas para a proporção de saída, 30 fps,
+  `eq` para brilho/contraste/saturação;
+- áudio do clipe com volume, ou silêncio (`anullsrc`) quando o clipe não tem áudio ou está mudo;
+- `concat` de todos os clipes; legendas com o filtro `subtitles` (libass), quando pedido;
+- trilha de fundo em loop, mixada com `amix`;
+- presets: rascunho 720p (CRF 28), padrão 1080p (CRF 23), alta 1080p (CRF 18); H.264 + AAC,
+  `+faststart`.
+
+O progresso vem de `-progress pipe:1`. Ao terminar, o arquivo é validado e registrado como mídia
+`render`, e o projeto ganha uma nova versão.
+
+## Preview
+
+O preview reproduz os clipes em sequência no navegador respeitando entrada e saída, com
+legendas sobrepostas. A cor usa filtros CSS como **aproximação**. A trilha de fundo e a mixagem
+só existem no arquivo exportado.
+
+## Next.js 16
+
+- `cacheComponents` está ativo: leituras por requisição ficam em componentes dentro de
+  `<Suspense>` que chamam `connection()` (`lib/server/page-context.ts`).
+- `usePathname()` na navegação também fica em `<Suspense>` (rotas com parâmetros dinâmicos).
+- `proxy.ts` substitui o antigo middleware. Ele **não** roda em `/api`: o proxy guarda o corpo da
+  requisição em memória (limite padrão de 10 MB), o que quebraria uploads grandes.
+- Erros internos do Next (`redirect`, renderização dinâmica) são repassados com `unstable_rethrow`.
 
 ## Decisões
 
 | Decisão | Motivo |
 | --- | --- |
-| Rotas em português (`/projetos`, `/configuracoes`) | Público brasileiro |
-| Rotas privadas acessíveis sem login nesta etapa | Autenticação ainda não existe; um aviso fixo no topo deixa isso claro |
-| Next 16 com `cacheComponents` (padrão do create-next-app) | Mantém o projeto na configuração atual recomendada |
-| `next typegen` antes do `tsc` | Os tipos globais `LayoutProps`/`PageProps` são gerados pelo Next |
-| Sem Playwright nesta etapa | Testes de componentes cobrem a fundação; E2E entra com a autenticação |
+| SQLite nativo (`node:sqlite`) no modo local | Sem dependência nativa para compilar; arquivo único |
+| Worker em processo separado (`tsx --conditions=react-server`) | Sobrevive a reinícios do servidor; não prende requisições |
+| Upload com o arquivo bruto no corpo (`application/octet-stream`) | Grava em disco em streaming com limite, sem carregar na memória |
+| Diretor de prompts sem IA | Organiza os campos de cena de forma previsível; o usuário edita o texto final |
+| Cópia física dos arquivos ao duplicar projeto | Excluir o original não quebra a cópia |

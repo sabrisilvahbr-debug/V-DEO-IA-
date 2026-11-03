@@ -1,8 +1,9 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { AuthForm } from "@/components/auth/auth-form";
+import { TimelineEditor } from "@/components/studio/timeline-editor";
+import { emptyTimeline } from "@/lib/domain/timeline";
 import { AppNav } from "@/components/layout/app-nav";
-import { StudioWorkspace } from "@/components/studio/studio-workspace";
 import HomePage from "@/app/page";
 
 vi.mock("next/navigation", () => ({
@@ -13,7 +14,7 @@ describe("Landing page", () => {
   it("apresenta o título principal e as chamadas para ação", () => {
     render(<HomePage />);
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(/estúdio de pós-produção/);
-    expect(screen.getByRole("link", { name: /Conhecer o estúdio/ })).toHaveAttribute("href", "/editor");
+    expect(screen.getByRole("link", { name: /Criar um projeto/ })).toHaveAttribute("href", "/projetos");
   });
 
   it("identifica a ilustração como não sendo um vídeo gerado", () => {
@@ -37,24 +38,60 @@ describe("AppNav", () => {
 });
 
 describe("AuthForm", () => {
-  it("mantém o formulário desabilitado enquanto a autenticação não existe", () => {
+  it("renderiza e-mail e senha habilitados", () => {
     render(<AuthForm mode="login" />);
-    expect(screen.getByRole("button", { name: "Entrar" })).toBeDisabled();
-    expect(screen.getByLabelText("E-mail")).toBeDisabled();
-    expect(screen.getByRole("note")).toHaveTextContent(/não está ativa/);
-  });
-
-  it("exibe o campo de nome somente no cadastro", () => {
-    render(<AuthForm mode="cadastro" />);
-    expect(screen.getByLabelText("Nome")).toBeInTheDocument();
+    expect(screen.getByLabelText("E-mail")).toBeEnabled();
+    expect(screen.getByLabelText("Senha")).toHaveAttribute("minLength", "8");
+    expect(screen.getByRole("button", { name: "Entrar" })).toBeEnabled();
   });
 });
 
-describe("StudioWorkspace", () => {
-  it("não simula vídeo: exibe preview vazio e controles desabilitados", () => {
-    render(<StudioWorkspace />);
-    expect(screen.getByText("Nenhum vídeo carregado")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Reproduzir" })).toBeDisabled();
-    expect(screen.getByRole("list", { name: "Faixas da timeline" }).children).toHaveLength(3);
+describe("TimelineEditor", () => {
+  const noop = () => {};
+  it("mostra estado vazio e desabilita ações sem clipe selecionado", () => {
+    render(
+      <TimelineEditor
+        timeline={emptyTimeline()}
+        assets={new Map()}
+        selectedClipId={null}
+        playhead={0}
+        zoom={40}
+        onZoom={noop}
+        onSelect={noop}
+        onSeek={noop}
+        onMove={noop}
+        onSplit={noop}
+        onDuplicate={noop}
+        onRemove={noop}
+      />,
+    );
+    expect(screen.getByText("Adicione mídias pelo painel ao lado")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Remover/ })).toBeDisabled();
+  });
+
+  it("lista os clipes com nome e duração acessíveis", () => {
+    const timeline = {
+      ...emptyTimeline(),
+      clips: [{ id: "c1", assetId: "a1", kind: "video" as const, in: 1, out: 4, volume: 1, muted: false, color: { brightness: 0, contrast: 1, saturation: 1 } }],
+    };
+    const asset = { id: "a1", originalName: "praia.mp4", thumbnailKey: null, isDemo: false } as never;
+    render(
+      <TimelineEditor
+        timeline={timeline}
+        assets={new Map([["a1", asset]])}
+        selectedClipId="c1"
+        playhead={0}
+        zoom={40}
+        onZoom={noop}
+        onSelect={noop}
+        onSeek={noop}
+        onMove={noop}
+        onSplit={noop}
+        onDuplicate={noop}
+        onRemove={noop}
+      />,
+    );
+    expect(screen.getByRole("button", { name: "Clipe 1: praia.mp4, 3.0 segundos" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: /Remover/ })).toBeEnabled();
   });
 });

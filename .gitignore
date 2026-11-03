@@ -41,6 +41,9 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# dados locais do CINEMORPH (banco SQLite, vídeos enviados, renders)
+/.data/
+
 # arquivos privados e mídia local
 /private/
 /uploads/

@@ -52,11 +52,11 @@ export function Features() {
     <section id="recursos" className="scroll-mt-20 border-b border-border">
       <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 md:py-20">
         <h2 className="text-2xl font-semibold tracking-tight text-fg sm:text-3xl">
-          O que o estúdio vai fazer
+          O que o estúdio faz
         </h2>
         <p className="mt-3 max-w-2xl text-fg-muted">
-          Recursos planejados. Cada um será liberado apenas depois de implementado e testado com
-          uma integração real.
+          Timeline, cortes, legendas, cor e exportação já funcionam. A geração e a transformação por IA
+          serão ativadas à medida que cada integração real for verificada.
         </p>
         <ul className="mt-10 grid gap-x-8 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
           {features.map(({ icon: Icon, title, description }) => (

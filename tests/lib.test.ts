@@ -84,4 +84,8 @@ describe("productModules", () => {
     expect(productModules).toHaveLength(25);
     expect(productModules.map((m) => m.id)).toEqual(Array.from({ length: 25 }, (_, i) => i + 1));
   });
+
+  it("explica o que falta em todo módulo parcial", () => {
+    for (const m of productModules.filter((x) => x.status === "parcial")) expect(m.note, m.name).toBeTruthy();
+  });
 });
