@@ -16,7 +16,8 @@
     "preworker": "node scripts/doctor.mjs",
     "worker": "tsx --conditions=react-server workers/worker.ts",
     "dev:all": "node scripts/dev-all.mjs",
-    "doctor": "node scripts/doctor.mjs"
+    "doctor": "node scripts/doctor.mjs",
+    "test:smoke": "node scripts/smoke-binary.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

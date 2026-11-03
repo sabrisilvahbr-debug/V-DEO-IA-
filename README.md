@@ -70,6 +70,7 @@ A timeline é salva automaticamente.
 | `npm run typecheck` | Tipos de rota do Next + `tsc --noEmit`                      |
 | `npm test`          | Testes (unitários, componentes e integração com FFmpeg)     |
 | `npm run check`     | Lint + tipos + testes + build                               |
+| `npm run test:smoke`| Com o app rodando: testa upload, download, Range e exportação de todos os formatos |
 | `npm run doctor`    | Verifica o ambiente (Node, dependências, banco, FFmpeg)     |
 
 ## Arquitetura em uma página
