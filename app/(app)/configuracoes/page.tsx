@@ -57,6 +57,9 @@ async function SettingsData() {
           <dt className="text-fg-subtle">Resolução máxima</dt>
           <dd className="text-fg">{config.maxResolution} px</dd>
         </dl>
+        <a href="/diagnostico" className="mt-3 inline-block text-xs text-accent hover:underline">
+          Abrir diagnóstico do ambiente
+        </a>
       </Card>
 
       <Card>

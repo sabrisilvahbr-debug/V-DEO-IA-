@@ -10,7 +10,7 @@ worker.
 
 ## Opção recomendada: servidor ou contêiner próprio
 
-1. Node.js 22.13+, FFmpeg 5+ instalados.
+1. Node.js 22.13+ (ou 20.9+ com `better-sqlite3`), FFmpeg 5+ instalados.
 2. `npm ci && npm run build`
 3. Rodar `npm start` e `npm run worker` sob um supervisor (systemd, pm2, Docker Compose).
 4. Modo local: manter `CINEMORPH_DATA_DIR` num disco persistente e fazer backup dele.

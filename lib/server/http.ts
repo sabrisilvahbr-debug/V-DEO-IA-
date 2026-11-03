@@ -4,6 +4,7 @@ import { connection } from "next/server";
 import { ZodError, type ZodType } from "zod";
 import { getRequestContext, type RequestContext } from "./context";
 import { RateLimitError } from "./rate-limit";
+import { SetupError } from "./setup-error";
 
 /** Erro com status HTTP e mensagem segura para o usuário. */
 export class HttpError extends Error {
@@ -29,6 +30,10 @@ export function toErrorResponse(error: unknown): Response {
       { error: { code: "limite_de_requisicoes", message: error.message } },
       { status: 429, headers: { "Retry-After": String(error.retryAfterSeconds) } },
     );
+  }
+  if (error instanceof SetupError) {
+    console.error(`[setup] ${error.message} ${error.fix}`);
+    return jsonError(503, error.message, "ambiente", { hint: error.fix });
   }
   if (error instanceof ZodError) {
     return jsonError(400, "Dados inválidos.", "validacao", error.issues.map((i) => ({ path: i.path.join("."), message: i.message })));
