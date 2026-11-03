@@ -1,4 +1,5 @@
 import { ffprobeBin, runBinary } from "./ffmpeg";
+import { MediaValidationError } from "./validate";
 
 export type ProbeResult = {
   formatName: string;
@@ -34,7 +35,14 @@ export async function probeFile(filePath: string): Promise<ProbeResult> {
     { timeoutMs: 30_000 },
   );
   if (result.code !== 0) {
-    throw new Error("O arquivo não pôde ser lido como mídia. Ele pode estar corrompido ou incompleto.");
+    throw new MediaValidationError(
+      "O arquivo não pôde ser lido como mídia. Ele pode estar corrompido ou incompleto.",
+      "Verifique se o arquivo abre no seu computador e exporte-o novamente.",
+    );
   }
-  return parseProbeOutput(result.stdout);
+  try {
+    return parseProbeOutput(result.stdout);
+  } catch {
+    throw new MediaValidationError("O arquivo não pôde ser lido como mídia.", "Exporte o arquivo novamente.");
+  }
 }
